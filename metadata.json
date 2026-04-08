@@ -1,0 +1,5 @@
+{
+  "name": "ThermoHub",
+  "description": "Sistema de controle de temperatura para equipamentos laboratoriais com registros em tempo real, alertas de desvio e relatórios gerenciais.",
+  "requestFramePermissions": []
+}
