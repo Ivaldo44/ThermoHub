@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Thermometer, Lock, Mail, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { Thermometer, Lock, Mail, AlertCircle, Loader2, CheckCircle2, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -48,9 +49,26 @@ export default function LoginPage() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: fullName,
+          }
+        }
       });
 
       if (error) throw error;
+      
+      // If sign up is successful, we can also manually ensure a profile exists
+      // although usually a trigger handles this.
+      if (data.user) {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          full_name: fullName,
+          email: email,
+          role: 'admin' // First user is usually admin
+        });
+      }
+
       setSuccess('Conta criada com sucesso! Você já pode entrar com seu e-mail e senha.');
     } catch (err: any) {
       setError(err.message || 'Erro ao criar conta.');
@@ -132,6 +150,13 @@ export default function LoginPage() {
                       {success}
                     </div>
                   )}
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name">Nome Completo</Label>
+                    <div className="relative">
+                      <Input id="signup-name" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="pl-10" placeholder="Seu nome" />
+                      <User className="w-4 h-4 absolute left-3 top-3 text-zinc-400" />
+                    </div>
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">E-mail</Label>
                     <div className="relative">

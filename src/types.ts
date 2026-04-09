@@ -38,9 +38,10 @@ export interface UserProfile {
   id: string;
   full_name: string;
   role: 'admin' | 'operator' | 'viewer';
-  sector_id: number;
+  sector_id?: number;
   sector_name?: string;
   email?: string;
+  avatar_url?: string;
   created_at: string;
 }
 

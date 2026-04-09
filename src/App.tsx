@@ -13,14 +13,30 @@ import LogHistory from './components/LogHistory';
 import SettingsPage from './components/SettingsPage';
 import UserManager from './components/UserManager';
 import LoginPage from './components/LoginPage';
+import ProfilePage from './components/ProfilePage';
 import { Button } from './components/ui/button';
 import { cn } from './lib/utils';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
+import { UserProfile } from './types';
 
 function Sidebar({ isOpen, onClose, user }: { isOpen: boolean; onClose: () => void; user: User | null }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) setProfile(data);
+        });
+    }
+  }, [user]);
   
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -82,15 +98,25 @@ function Sidebar({ isOpen, onClose, user }: { isOpen: boolean; onClose: () => vo
           </nav>
           
           <div className="p-4 border-t border-zinc-800 space-y-2">
-            <div className="flex items-center gap-3 px-3 py-2 text-sm text-zinc-500">
-              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-xs font-bold text-white">
-                {user?.email?.substring(0, 2).toUpperCase() || 'IP'}
+            <Link to="/profile" onClick={() => onClose()} className="block">
+              <div className="flex items-center gap-3 px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-900 rounded-md transition-colors group">
+                <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-xs font-bold text-white overflow-hidden shrink-0">
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    profile?.full_name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase() || 'U'
+                  )}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-zinc-300 font-medium truncate group-hover:text-white transition-colors">
+                    {profile?.full_name || user?.email?.split('@')[0] || 'Usuário'}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider text-zinc-500 group-hover:text-zinc-400">
+                    {profile?.role === 'admin' ? 'Administrador' : profile?.role === 'operator' ? 'Operador' : 'Visualizador'}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-zinc-300 font-medium truncate">{user?.email?.split('@')[0] || 'Ivaldo P.'}</span>
-                <span className="text-[10px] uppercase tracking-wider">Supervisor</span>
-              </div>
-            </div>
+            </Link>
             <Button 
               variant="ghost" 
               size="sm" 
@@ -148,6 +174,7 @@ function MainLayout({ user, unitName, isSidebarOpen, setIsSidebarOpen }: { user:
               <Route path="history" element={<LogHistory />} />
               <Route path="equipment" element={<EquipmentManager />} />
               <Route path="users" element={<UserManager />} />
+              <Route path="profile" element={<ProfilePage />} />
               <Route path="settings" element={<SettingsPage />} />
               {/* Fallback for sub-routes */}
               <Route path="*" element={<Dashboard />} />
