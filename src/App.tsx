@@ -107,6 +107,58 @@ function Sidebar({ isOpen, onClose, user }: { isOpen: boolean; onClose: () => vo
   );
 }
 
+function MainLayout({ user, unitName, isSidebarOpen, setIsSidebarOpen }: { user: any, unitName: string, isSidebarOpen: boolean, setIsSidebarOpen: (open: boolean) => void }) {
+  return (
+    <div className="flex h-screen bg-zinc-50 text-zinc-900 font-sans">
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={user} />
+      
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header className="h-16 border-b border-zinc-200 bg-white flex items-center justify-between px-4 lg:px-8 shrink-0">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="lg:hidden" 
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+            <h1 className="text-lg font-semibold text-zinc-800">{unitName}</h1>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-zinc-500 bg-zinc-100 px-3 py-1 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              Sistema Online
+            </div>
+            <Link to="/settings">
+              <Button variant="outline" size="sm" className="gap-2">
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">Configurações</span>
+              </Button>
+            </Link>
+          </div>
+        </header>
+        
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+          <div className="max-w-7xl mx-auto">
+            <Routes>
+              <Route index element={<Dashboard />} />
+              <Route path="log" element={<TemperatureLogger />} />
+              <Route path="history" element={<LogHistory />} />
+              <Route path="equipment" element={<EquipmentManager />} />
+              <Route path="users" element={<UserManager />} />
+              <Route path="settings" element={<SettingsPage />} />
+              {/* Fallback for sub-routes */}
+              <Route path="*" element={<Dashboard />} />
+            </Routes>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
 export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [unitName, setUnitName] = useState('Controle de Temperatura');
@@ -168,54 +220,15 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route
-          path="*"
+          path="/*"
           element={
             session ? (
-              <div className="flex h-screen bg-zinc-50 text-zinc-900 font-sans">
-                <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={session.user} />
-                
-                <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                  <header className="h-16 border-b border-zinc-200 bg-white flex items-center justify-between px-4 lg:px-8 shrink-0">
-                    <div className="flex items-center gap-4">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="lg:hidden" 
-                        onClick={() => setIsSidebarOpen(true)}
-                      >
-                        <Menu className="w-5 h-5" />
-                      </Button>
-                      <h1 className="text-lg font-semibold text-zinc-800">{unitName}</h1>
-                    </div>
-                    
-                    <div className="flex items-center gap-4">
-                      <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-zinc-500 bg-zinc-100 px-3 py-1 rounded-full">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        Sistema Online
-                      </div>
-                      <Link to="/settings">
-                        <Button variant="outline" size="sm" className="gap-2">
-                          <Settings className="w-4 h-4" />
-                          <span className="hidden sm:inline">Configurações</span>
-                        </Button>
-                      </Link>
-                    </div>
-                  </header>
-                  
-                  <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-                    <div className="max-w-7xl mx-auto">
-                      <Routes>
-                        <Route index element={<Dashboard />} />
-                        <Route path="log" element={<TemperatureLogger />} />
-                        <Route path="history" element={<LogHistory />} />
-                        <Route path="equipment" element={<EquipmentManager />} />
-                        <Route path="users" element={<UserManager />} />
-                        <Route path="settings" element={<SettingsPage />} />
-                      </Routes>
-                    </div>
-                  </div>
-                </main>
-              </div>
+              <MainLayout 
+                user={session.user} 
+                unitName={unitName} 
+                isSidebarOpen={isSidebarOpen} 
+                setIsSidebarOpen={setIsSidebarOpen} 
+              />
             ) : (
               <LoginPage />
             )

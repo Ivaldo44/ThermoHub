@@ -293,9 +293,9 @@ export default function UserManager() {
                       <TableCell className="py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold">
-                            {user.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                            {(user.full_name || 'Usuário').split(' ').map(n => n[0]).join('').toUpperCase()}
                           </div>
-                          <span className="font-semibold text-zinc-900">{user.full_name}</span>
+                          <span className="font-semibold text-zinc-900">{user.full_name || 'Sem nome'}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-zinc-600 py-4">
