@@ -51,7 +51,7 @@ export default function LoginPage() {
       });
 
       if (error) throw error;
-      setSuccess('Conta criada! Verifique seu e-mail para confirmar (se habilitado) ou tente fazer login.');
+      setSuccess('Conta criada com sucesso! Você já pode entrar com seu e-mail e senha.');
     } catch (err: any) {
       setError(err.message || 'Erro ao criar conta.');
     } finally {

@@ -205,12 +205,12 @@ export default function App() {
                   <div className="flex-1 overflow-y-auto p-4 lg:p-8">
                     <div className="max-w-7xl mx-auto">
                       <Routes>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/log" element={<TemperatureLogger />} />
-                        <Route path="/history" element={<LogHistory />} />
-                        <Route path="/equipment" element={<EquipmentManager />} />
-                        <Route path="/users" element={<UserManager />} />
-                        <Route path="/settings" element={<SettingsPage />} />
+                        <Route index element={<Dashboard />} />
+                        <Route path="log" element={<TemperatureLogger />} />
+                        <Route path="history" element={<LogHistory />} />
+                        <Route path="equipment" element={<EquipmentManager />} />
+                        <Route path="users" element={<UserManager />} />
+                        <Route path="settings" element={<SettingsPage />} />
                       </Routes>
                     </div>
                   </div>

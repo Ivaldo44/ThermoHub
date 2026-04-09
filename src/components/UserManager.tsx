@@ -60,6 +60,13 @@ export default function UserManager() {
         supabase.from('sectors').select('*').order('name'),
       ]);
 
+      if (profilesRes.error) {
+        console.error('Erro ao buscar perfis:', profilesRes.error);
+      }
+      if (sectorsRes.error) {
+        console.error('Erro ao buscar setores:', sectorsRes.error);
+      }
+
       const formattedProfiles = (profilesRes.data || []).map((p: any) => ({
         ...p,
         sector_name: p.sectors?.name,
@@ -68,7 +75,7 @@ export default function UserManager() {
       setUsers(formattedProfiles);
       setSectors(sectorsRes.data || []);
     } catch (error) {
-      console.error('Erro ao buscar dados:', error);
+      console.error('Erro geral ao buscar dados:', error);
     } finally {
       setLoading(false);
     }
@@ -234,9 +241,16 @@ export default function UserManager() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {sectors.map(s => (
-                                  <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>
-                                ))}
+                                {sectors.length === 0 ? (
+                                  <div className="p-2 text-xs text-zinc-500 text-center">
+                                    Nenhum setor cadastrado. <br/>
+                                    Crie um setor primeiro na aba "Setores".
+                                  </div>
+                                ) : (
+                                  sectors.map(s => (
+                                    <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>
+                                  ))
+                                )}
                               </SelectContent>
                             </Select>
                             <FormMessage />
