@@ -20,23 +20,9 @@ import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { UserProfile } from './types';
 
-function Sidebar({ isOpen, onClose, user }: { isOpen: boolean; onClose: () => void; user: User | null }) {
+function Sidebar({ isOpen, onClose, user, profile }: { isOpen: boolean; onClose: () => void; user: User | null; profile: UserProfile | null }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  
-  useEffect(() => {
-    if (user) {
-      supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-        .then(({ data }) => {
-          if (data) setProfile(data);
-        });
-    }
-  }, [user]);
   
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -48,7 +34,7 @@ function Sidebar({ isOpen, onClose, user }: { isOpen: boolean; onClose: () => vo
     { icon: Thermometer, label: 'Novo Registro', path: '/log' },
     { icon: History, label: 'Histórico', path: '/history' },
     { icon: Database, label: 'Equipamentos', path: '/equipment' },
-    { icon: Users, label: 'Equipe', path: '/users' },
+    ...(profile?.role === 'admin' ? [{ icon: Users, label: 'Equipe', path: '/users' }] : []),
   ];
 
   return (
@@ -133,10 +119,10 @@ function Sidebar({ isOpen, onClose, user }: { isOpen: boolean; onClose: () => vo
   );
 }
 
-function MainLayout({ user, unitName, isSidebarOpen, setIsSidebarOpen }: { user: any, unitName: string, isSidebarOpen: boolean, setIsSidebarOpen: (open: boolean) => void }) {
+function MainLayout({ user, profile, unitName, isSidebarOpen, setIsSidebarOpen }: { user: any, profile: UserProfile | null, unitName: string, isSidebarOpen: boolean, setIsSidebarOpen: (open: boolean) => void }) {
   return (
     <div className="flex h-screen bg-zinc-50 text-zinc-900 font-sans">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={user} />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={user} profile={profile} />
       
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 border-b border-zinc-200 bg-white flex items-center justify-between px-4 lg:px-8 shrink-0">
@@ -157,12 +143,14 @@ function MainLayout({ user, unitName, isSidebarOpen, setIsSidebarOpen }: { user:
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               Sistema Online
             </div>
-            <Link to="/settings">
-              <Button variant="outline" size="sm" className="gap-2">
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Configurações</span>
-              </Button>
-            </Link>
+            {profile?.role === 'admin' && (
+              <Link to="/settings">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Settings className="w-4 h-4" />
+                  <span className="hidden sm:inline">Configurações</span>
+                </Button>
+              </Link>
+            )}
           </div>
         </header>
         
@@ -190,23 +178,44 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [unitName, setUnitName] = useState('Controle de Temperatura');
   const [session, setSession] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check active sessions and subscribe to auth changes
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setLoading(false);
+      if (!session) setLoading(false);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (!session) {
+        setProfile(null);
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (session?.user) {
+      const fetchProfile = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (data) setProfile(data);
+        setLoading(false);
+      };
+      fetchProfile();
+    }
+  }, [session]);
 
   useEffect(() => {
     const fetchUnitName = async () => {
@@ -252,6 +261,7 @@ export default function App() {
             session ? (
               <MainLayout 
                 user={session.user} 
+                profile={profile}
                 unitName={unitName} 
                 isSidebarOpen={isSidebarOpen} 
                 setIsSidebarOpen={setIsSidebarOpen} 

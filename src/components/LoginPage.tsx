@@ -58,15 +58,18 @@ export default function LoginPage() {
 
       if (error) throw error;
       
-      // If sign up is successful, we can also manually ensure a profile exists
-      // although usually a trigger handles this.
+      // If sign up is successful, create the profile
       if (data.user) {
-        await supabase.from('profiles').upsert({
+        const { error: profileError } = await supabase.from('profiles').upsert({
           id: data.user.id,
           full_name: fullName,
           email: email,
-          role: 'admin' // First user is usually admin
+          role: 'operator' // New accounts are now 'operator' (normal) by default
         });
+        
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+        }
       }
 
       setSuccess('Conta criada com sucesso! Você já pode entrar com seu e-mail e senha.');
