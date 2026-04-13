@@ -34,7 +34,7 @@ function Sidebar({ isOpen, onClose, user, profile }: { isOpen: boolean; onClose:
     { icon: Thermometer, label: 'Novo Registro', path: '/log' },
     { icon: History, label: 'Histórico', path: '/history' },
     { icon: Database, label: 'Equipamentos', path: '/equipment' },
-    ...(profile?.role === 'admin' ? [{ icon: Users, label: 'Equipe', path: '/users' }] : []),
+    { icon: Users, label: 'Equipe', path: '/users' },
   ];
 
   return (

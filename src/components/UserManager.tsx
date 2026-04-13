@@ -37,6 +37,7 @@ export default function UserManager() {
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [isSectorDialogOpen, setIsSectorDialogOpen] = useState(false);
@@ -69,11 +70,14 @@ export default function UserManager() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [profilesRes, sectorsRes, unitsRes, equipmentRes] = await Promise.all([
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const [profilesRes, sectorsRes, unitsRes, equipmentRes, currentProfileRes] = await Promise.all([
         supabase.from('profiles').select('*, sectors(name)').order('full_name'),
         supabase.from('sectors').select('*').order('name'),
         supabase.from('units').select('*').order('name'),
         supabase.from('equipment').select('*, sectors(name), units(name)').order('name'),
+        user ? supabase.from('profiles').select('*').eq('id', user.id).single() : Promise.resolve({ data: null, error: null })
       ]);
 
       if (profilesRes.error) console.error('Erro ao buscar perfis:', profilesRes.error);
@@ -96,6 +100,7 @@ export default function UserManager() {
       setSectors(sectorsRes.data || []);
       setUnits(unitsRes.data || []);
       setEquipment(formattedEquipment);
+      setCurrentUserProfile(currentProfileRes.data);
     } catch (error) {
       console.error('Erro geral ao buscar dados:', error);
     } finally {
@@ -204,117 +209,119 @@ export default function UserManager() {
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
-          <div className="flex justify-end">
-            <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 bg-green-600 hover:bg-green-700">
-                  <UserPlus className="w-4 h-4" />
-                  Novo Usuário
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Adicionar Novo Membro</DialogTitle>
-                </DialogHeader>
-                <Form {...userForm}>
-                  <form 
-                    onSubmit={(e) => {
-                      console.log('Form submit triggered');
-                      userForm.handleSubmit(onUserSubmit, (errors) => {
-                        console.error('Validation errors:', errors);
-                      })(e);
-                    }} 
-                    className="space-y-4"
-                  >
-                    <FormField
-                      control={userForm.control}
-                      name="full_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome Completo</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: João Silva" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={userForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>E-mail</FormLabel>
-                          <FormControl>
-                            <Input placeholder="joao@laboratorio.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid grid-cols-2 gap-4">
+          {currentUserProfile?.role === 'admin' && (
+            <div className="flex justify-end">
+              <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2 bg-green-600 hover:bg-green-700">
+                    <UserPlus className="w-4 h-4" />
+                    Novo Usuário
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Adicionar Novo Membro</DialogTitle>
+                  </DialogHeader>
+                  <Form {...userForm}>
+                    <form 
+                      onSubmit={(e) => {
+                        console.log('Form submit triggered');
+                        userForm.handleSubmit(onUserSubmit, (errors) => {
+                          console.error('Validation errors:', errors);
+                        })(e);
+                      }} 
+                      className="space-y-4"
+                    >
                       <FormField
                         control={userForm.control}
-                        name="role"
+                        name="full_name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Função</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="admin">Administrador</SelectItem>
-                                <SelectItem value="operator">Operador</SelectItem>
-                                <SelectItem value="viewer">Visualizador</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <FormLabel>Nome Completo</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: João Silva" {...field} />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                       <FormField
                         control={userForm.control}
-                        name="sector_id"
+                        name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Setor</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione">
-                                    {sectors.find(s => s.id.toString() === field.value)?.name}
-                                  </SelectValue>
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {sectors.length === 0 ? (
-                                  <div className="p-2 text-xs text-zinc-500 text-center">
-                                    Nenhum setor cadastrado. <br/>
-                                    Crie um setor primeiro na aba "Setores".
-                                  </div>
-                                ) : (
-                                  sectors.map(s => (
-                                    <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>
-                                  ))
-                                )}
-                              </SelectContent>
-                            </Select>
+                            <FormLabel>E-mail</FormLabel>
+                            <FormControl>
+                              <Input placeholder="joao@laboratorio.com" {...field} />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    </div>
-                    <DialogFooter className="pt-4">
-                      <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">Salvar Usuário</Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={userForm.control}
+                          name="role"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Função</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="admin">Administrador</SelectItem>
+                                  <SelectItem value="operator">Operador</SelectItem>
+                                  <SelectItem value="viewer">Visualizador</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={userForm.control}
+                          name="sector_id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Setor</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione">
+                                      {sectors.find(s => s.id.toString() === field.value)?.name}
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {sectors.length === 0 ? (
+                                    <div className="p-2 text-xs text-zinc-500 text-center">
+                                      Nenhum setor cadastrado. <br/>
+                                      Crie um setor primeiro na aba "Setores".
+                                    </div>
+                                  ) : (
+                                    sectors.map(s => (
+                                      <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <DialogFooter className="pt-4">
+                        <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">Salvar Usuário</Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
 
           <Card className="border-green-100 shadow-sm overflow-hidden">
             <Table>
@@ -371,14 +378,16 @@ export default function UserManager() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right py-4">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-zinc-300 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => deleteUser(user.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {currentUserProfile?.role === 'admin' && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-zinc-300 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => deleteUser(user.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -389,41 +398,43 @@ export default function UserManager() {
         </TabsContent>
 
         <TabsContent value="sectors" className="space-y-4">
-          <div className="flex justify-end">
-            <Dialog open={isSectorDialogOpen} onOpenChange={setIsSectorDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 bg-green-600 hover:bg-green-700">
-                  <Plus className="w-4 h-4" />
-                  Novo Setor
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Adicionar Novo Setor</DialogTitle>
-                </DialogHeader>
-                <Form {...sectorForm}>
-                  <form onSubmit={sectorForm.handleSubmit(onSectorSubmit)} className="space-y-4">
-                    <FormField
-                      control={sectorForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome do Setor</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: Microbiologia" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <DialogFooter className="pt-4">
-                      <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">Salvar Setor</Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
+          {currentUserProfile?.role === 'admin' && (
+            <div className="flex justify-end">
+              <Dialog open={isSectorDialogOpen} onOpenChange={setIsSectorDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2 bg-green-600 hover:bg-green-700">
+                    <Plus className="w-4 h-4" />
+                    Novo Setor
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Adicionar Novo Setor</DialogTitle>
+                  </DialogHeader>
+                  <Form {...sectorForm}>
+                    <form onSubmit={sectorForm.handleSubmit(onSectorSubmit)} className="space-y-4">
+                      <FormField
+                        control={sectorForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome do Setor</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: Microbiologia" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <DialogFooter className="pt-4">
+                        <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">Salvar Setor</Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
 
           <Card className="border-green-100 shadow-sm overflow-hidden">
             <Table>
@@ -452,14 +463,16 @@ export default function UserManager() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right py-4">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-zinc-300 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => deleteSector(sector.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {currentUserProfile?.role === 'admin' && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-zinc-300 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => deleteSector(sector.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -470,41 +483,43 @@ export default function UserManager() {
         </TabsContent>
 
         <TabsContent value="units" className="space-y-4">
-          <div className="flex justify-end">
-            <Dialog open={isUnitDialogOpen} onOpenChange={setIsUnitDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 bg-green-600 hover:bg-green-700">
-                  <Plus className="w-4 h-4" />
-                  Nova Unidade
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Adicionar Nova Unidade</DialogTitle>
-                </DialogHeader>
-                <Form {...unitForm}>
-                  <form onSubmit={unitForm.handleSubmit(onUnitSubmit)} className="space-y-4">
-                    <FormField
-                      control={unitForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome da Unidade</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: Unidade Central" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <DialogFooter className="pt-4">
-                      <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">Salvar Unidade</Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
+          {currentUserProfile?.role === 'admin' && (
+            <div className="flex justify-end">
+              <Dialog open={isUnitDialogOpen} onOpenChange={setIsUnitDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2 bg-green-600 hover:bg-green-700">
+                    <Plus className="w-4 h-4" />
+                    Nova Unidade
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Adicionar Nova Unidade</DialogTitle>
+                  </DialogHeader>
+                  <Form {...unitForm}>
+                    <form onSubmit={unitForm.handleSubmit(onUnitSubmit)} className="space-y-4">
+                      <FormField
+                        control={unitForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome da Unidade</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: Unidade Central" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <DialogFooter className="pt-4">
+                        <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">Salvar Unidade</Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
 
           <Card className="border-green-100 shadow-sm overflow-hidden">
             <Table>
@@ -533,14 +548,16 @@ export default function UserManager() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right py-4">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-zinc-300 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => deleteUnit(unit.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {currentUserProfile?.role === 'admin' && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-zinc-300 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => deleteUnit(unit.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
