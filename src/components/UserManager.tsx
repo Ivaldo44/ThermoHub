@@ -4,9 +4,9 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
-import { UserPlus, Trash2, Shield, User, Building2, Mail, Plus } from 'lucide-react';
+import { UserPlus, Trash2, Shield, User, Building2, Mail, Plus, MapPin, Thermometer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { UserProfile, Sector } from '../types';
+import { UserProfile, Sector, Unit, Equipment } from '../types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useForm } from 'react-hook-form';
@@ -28,12 +28,19 @@ const sectorSchema = z.object({
   name: z.string().min(2, 'Nome do setor deve ter pelo menos 2 caracteres'),
 });
 
+const unitSchema = z.object({
+  name: z.string().min(2, 'Nome da unidade deve ter pelo menos 2 caracteres'),
+});
+
 export default function UserManager() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [isSectorDialogOpen, setIsSectorDialogOpen] = useState(false);
+  const [isUnitDialogOpen, setIsUnitDialogOpen] = useState(false);
 
   const userForm = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
@@ -52,28 +59,43 @@ export default function UserManager() {
     },
   });
 
+  const unitForm = useForm<z.infer<typeof unitSchema>>({
+    resolver: zodResolver(unitSchema),
+    defaultValues: {
+      name: '',
+    },
+  });
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [profilesRes, sectorsRes] = await Promise.all([
+      const [profilesRes, sectorsRes, unitsRes, equipmentRes] = await Promise.all([
         supabase.from('profiles').select('*, sectors(name)').order('full_name'),
         supabase.from('sectors').select('*').order('name'),
+        supabase.from('units').select('*').order('name'),
+        supabase.from('equipment').select('*, sectors(name), units(name)').order('name'),
       ]);
 
-      if (profilesRes.error) {
-        console.error('Erro ao buscar perfis:', profilesRes.error);
-      }
-      if (sectorsRes.error) {
-        console.error('Erro ao buscar setores:', sectorsRes.error);
-      }
+      if (profilesRes.error) console.error('Erro ao buscar perfis:', profilesRes.error);
+      if (sectorsRes.error) console.error('Erro ao buscar setores:', sectorsRes.error);
+      if (unitsRes.error) console.error('Erro ao buscar unidades:', unitsRes.error);
+      if (equipmentRes.error) console.error('Erro ao buscar equipamentos:', equipmentRes.error);
 
       const formattedProfiles = (profilesRes.data || []).map((p: any) => ({
         ...p,
         sector_name: p.sectors?.name,
       }));
 
+      const formattedEquipment = (equipmentRes.data || []).map((e: any) => ({
+        ...e,
+        sector_name: e.sectors?.name,
+        unit_name: e.units?.name,
+      }));
+
       setUsers(formattedProfiles);
       setSectors(sectorsRes.data || []);
+      setUnits(unitsRes.data || []);
+      setEquipment(formattedEquipment);
     } catch (error) {
       console.error('Erro geral ao buscar dados:', error);
     } finally {
@@ -127,6 +149,22 @@ export default function UserManager() {
     }
   }
 
+  async function onUnitSubmit(values: z.infer<typeof unitSchema>) {
+    try {
+      const { error } = await supabase.from('units').insert([{
+        name: values.name,
+      }]);
+
+      if (error) throw error;
+      
+      setIsUnitDialogOpen(false);
+      unitForm.reset();
+      fetchData();
+    } catch (error) {
+      console.error('Erro ao adicionar unidade:', error);
+    }
+  }
+
   const deleteUser = async (id: string) => {
     const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (!error) fetchData();
@@ -134,6 +172,11 @@ export default function UserManager() {
 
   const deleteSector = async (id: number) => {
     const { error } = await supabase.from('sectors').delete().eq('id', id);
+    if (!error) fetchData();
+  };
+
+  const deleteUnit = async (id: number) => {
+    const { error } = await supabase.from('units').delete().eq('id', id);
     if (!error) fetchData();
   };
 
@@ -149,8 +192,14 @@ export default function UserManager() {
           <TabsTrigger value="users" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
             Usuários
           </TabsTrigger>
+          <TabsTrigger value="units" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            Unidades
+          </TabsTrigger>
           <TabsTrigger value="sectors" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
             Setores
+          </TabsTrigger>
+          <TabsTrigger value="equipment" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            Equipamentos
           </TabsTrigger>
         </TabsList>
 
@@ -411,6 +460,131 @@ export default function UserManager() {
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="units" className="space-y-4">
+          <div className="flex justify-end">
+            <Dialog open={isUnitDialogOpen} onOpenChange={setIsUnitDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2 bg-green-600 hover:bg-green-700">
+                  <Plus className="w-4 h-4" />
+                  Nova Unidade
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Adicionar Nova Unidade</DialogTitle>
+                </DialogHeader>
+                <Form {...unitForm}>
+                  <form onSubmit={unitForm.handleSubmit(onUnitSubmit)} className="space-y-4">
+                    <FormField
+                      control={unitForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome da Unidade</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex: Unidade Central" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter className="pt-4">
+                      <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">Salvar Unidade</Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card className="border-green-100 shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-green-600 hover:bg-green-600">
+                  <TableHead className="text-white font-bold py-4">Nome da Unidade</TableHead>
+                  <TableHead className="text-white font-bold py-4 text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-center py-10 text-zinc-400">Carregando unidades...</TableCell>
+                  </TableRow>
+                ) : units.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-center py-10 text-zinc-400">Nenhuma unidade cadastrada.</TableCell>
+                  </TableRow>
+                ) : (
+                  units.map((unit) => (
+                    <TableRow key={unit.id} className="hover:bg-green-50/30 transition-colors group">
+                      <TableCell className="py-4 font-medium text-zinc-900">
+                        <div className="flex items-center gap-3">
+                          <MapPin className="w-4 h-4 text-green-600" />
+                          {unit.name}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right py-4">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-zinc-300 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => deleteUnit(unit.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="equipment" className="space-y-4">
+          <Card className="border-green-100 shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-green-600 hover:bg-green-600">
+                  <TableHead className="text-white font-bold py-4">Equipamento</TableHead>
+                  <TableHead className="text-white font-bold py-4">Unidade</TableHead>
+                  <TableHead className="text-white font-bold py-4">Setor</TableHead>
+                  <TableHead className="text-white font-bold py-4">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-10 text-zinc-400">Carregando equipamentos...</TableCell>
+                  </TableRow>
+                ) : equipment.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-10 text-zinc-400">Nenhum equipamento cadastrado.</TableCell>
+                  </TableRow>
+                ) : (
+                  equipment.map((item) => (
+                    <TableRow key={item.id} className="hover:bg-green-50/30 transition-colors group">
+                      <TableCell className="py-4 font-medium text-zinc-900">
+                        <div className="flex items-center gap-3">
+                          <Thermometer className="w-4 h-4 text-green-600" />
+                          {item.name}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-zinc-600 py-4">{item.unit_name || '-'}</TableCell>
+                      <TableCell className="text-zinc-600 py-4">{item.sector_name || '-'}</TableCell>
+                      <TableCell className="py-4">
+                        <Badge variant={item.is_active ? "default" : "secondary"} className={item.is_active ? "bg-green-100 text-green-700 hover:bg-green-100" : ""}>
+                          {item.is_active ? 'Ativo' : 'Inativo'}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))
