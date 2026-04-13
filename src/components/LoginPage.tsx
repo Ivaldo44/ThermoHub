@@ -8,11 +8,14 @@ import { Thermometer, Lock, Mail, AlertCircle, Loader2, CheckCircle2, User } fro
 import { supabase } from '../lib/supabase';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState<'admin' | 'operator'>('operator');
+  const [adminKey, setAdminKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -66,15 +69,22 @@ export default function LoginPage() {
       
       // If sign up is successful, create the profile
       if (data.user) {
+        // Check if admin key is correct if admin role is selected
+        const finalRole = (role === 'admin' && adminKey === 'LAB2024') ? 'admin' : 'operator';
+        
         const { error: profileError } = await supabase.from('profiles').upsert({
           id: data.user.id,
           full_name: fullName,
           email: email,
-          role: 'operator' // New accounts are now 'operator' (normal) by default
+          role: finalRole
         });
         
         if (profileError) {
           console.error('Error creating profile:', profileError);
+        }
+
+        if (role === 'admin' && adminKey !== 'LAB2024') {
+          setError('Chave de Administrador incorreta. Conta criada como Operador.');
         }
       }
 
@@ -170,6 +180,34 @@ export default function LoginPage() {
                       <User className="w-4 h-4 absolute left-3 top-3 text-zinc-400" />
                     </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-role">Tipo de Conta</Label>
+                      <Select onValueChange={(value: any) => setRole(value)} value={role}>
+                        <SelectTrigger id="signup-role">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="operator">Operador (Normal)</SelectItem>
+                          <SelectItem value="admin">Administrador</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {role === 'admin' && (
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-key">Chave Admin</Label>
+                        <Input 
+                          id="admin-key" 
+                          type="password" 
+                          placeholder="Chave mestre" 
+                          value={adminKey} 
+                          onChange={(e) => setAdminKey(e.target.value)}
+                          required={role === 'admin'}
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">E-mail</Label>
                     <div className="relative">
