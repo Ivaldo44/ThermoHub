@@ -33,7 +33,13 @@ export default function LoginPage() {
       if (error) throw error;
       if (data.user) navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Erro ao realizar login.');
+      let friendlyMessage = err.message;
+      if (err.message === 'User already registered') {
+        friendlyMessage = 'Este e-mail já está cadastrado. Tente fazer login.';
+      } else if (err.message === 'Invalid login credentials') {
+        friendlyMessage = 'E-mail ou senha incorretos.';
+      }
+      setError(friendlyMessage || 'Erro ao realizar login.');
     } finally {
       setLoading(false);
     }
@@ -74,7 +80,11 @@ export default function LoginPage() {
 
       setSuccess('Conta criada com sucesso! Você já pode entrar com seu e-mail e senha.');
     } catch (err: any) {
-      setError(err.message || 'Erro ao criar conta.');
+      let friendlyMessage = err.message;
+      if (err.message === 'User already registered') {
+        friendlyMessage = 'Este e-mail já está cadastrado. Tente fazer login.';
+      }
+      setError(friendlyMessage || 'Erro ao criar conta.');
     } finally {
       setLoading(false);
     }
